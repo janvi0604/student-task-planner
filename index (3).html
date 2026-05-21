@@ -1,0 +1,951 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>StudyFlow — Student Task & Study Planner</title>
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet"/>
+  <style>
+    :root {
+      --bg: #0d0f14;
+      --surface: #151821;
+      --surface2: #1e2130;
+      --border: #2a2e3f;
+      --accent: #7c6fff;
+      --accent2: #ff6b9d;
+      --accent3: #43e8b0;
+      --text: #e8eaf0;
+      --muted: #6b7180;
+      --danger: #ff4d6d;
+      --warn: #ffc845;
+      --radius: 14px;
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+    body {
+      font-family: 'DM Mono', monospace;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* ── BACKGROUND GRID ── */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image:
+        linear-gradient(rgba(124,111,255,.04) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(124,111,255,.04) 1px, transparent 1px);
+      background-size: 40px 40px;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    /* ── HEADER ── */
+    header {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      background: rgba(13,15,20,.85);
+      backdrop-filter: blur(16px);
+      border-bottom: 1px solid var(--border);
+      padding: 0 32px;
+      height: 64px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .logo {
+      font-family: 'Syne', sans-serif;
+      font-weight: 800;
+      font-size: 1.3rem;
+      letter-spacing: -0.5px;
+    }
+    .logo span { color: var(--accent); }
+    .header-meta {
+      font-size: .75rem;
+      color: var(--muted);
+    }
+    #live-clock {
+      font-size: .85rem;
+      color: var(--accent3);
+    }
+
+    /* ── LAYOUT ── */
+    .container {
+      position: relative;
+      z-index: 1;
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 32px 24px 80px;
+    }
+    .grid-3 {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 20px;
+    }
+    @media(max-width:900px){ .grid-3{ grid-template-columns:1fr 1fr; } }
+    @media(max-width:580px){ .grid-3{ grid-template-columns:1fr; } }
+
+    /* ── TABS ── */
+    .tabs {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 28px;
+      flex-wrap: wrap;
+    }
+    .tab-btn {
+      font-family: 'Syne', sans-serif;
+      font-weight: 600;
+      font-size: .85rem;
+      padding: 8px 20px;
+      border-radius: 99px;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      color: var(--muted);
+      cursor: pointer;
+      transition: all .2s;
+      letter-spacing: .5px;
+    }
+    .tab-btn:hover { border-color: var(--accent); color: var(--text); }
+    .tab-btn.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+
+    /* ── SECTION PANELS ── */
+    .panel { display: none; }
+    .panel.active { display: block; }
+
+    /* ── CARD ── */
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 24px;
+      transition: border-color .2s;
+    }
+    .card:hover { border-color: var(--accent); }
+    .card-title {
+      font-family: 'Syne', sans-serif;
+      font-weight: 700;
+      font-size: 1rem;
+      margin-bottom: 18px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .card-title .icon { font-size: 1.1rem; }
+
+    /* ── STAT BADGES ── */
+    .stats-row {
+      display: grid;
+      grid-template-columns: repeat(4,1fr);
+      gap: 14px;
+      margin-bottom: 28px;
+    }
+    @media(max-width:700px){ .stats-row{ grid-template-columns:1fr 1fr; } }
+    .stat-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 18px 20px;
+      position: relative;
+      overflow: hidden;
+    }
+    .stat-card::after {
+      content: '';
+      position: absolute;
+      bottom: 0; left: 0; right: 0;
+      height: 3px;
+    }
+    .stat-card.s1::after { background: var(--accent); }
+    .stat-card.s2::after { background: var(--accent2); }
+    .stat-card.s3::after { background: var(--accent3); }
+    .stat-card.s4::after { background: var(--warn); }
+    .stat-label { font-size: .72rem; color: var(--muted); margin-bottom: 6px; text-transform: uppercase; letter-spacing: 1px; }
+    .stat-value { font-family: 'Syne', sans-serif; font-weight: 800; font-size: 2rem; }
+    .stat-card.s1 .stat-value { color: var(--accent); }
+    .stat-card.s2 .stat-value { color: var(--accent2); }
+    .stat-card.s3 .stat-value { color: var(--accent3); }
+    .stat-card.s4 .stat-value { color: var(--warn); }
+
+    /* ── FORM ELEMENTS ── */
+    input, select, textarea {
+      width: 100%;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--text);
+      font-family: 'DM Mono', monospace;
+      font-size: .85rem;
+      padding: 10px 14px;
+      outline: none;
+      transition: border-color .2s;
+    }
+    input:focus, select:focus, textarea:focus { border-color: var(--accent); }
+    select option { background: var(--surface2); }
+    label { display: block; font-size: .75rem; color: var(--muted); margin-bottom: 6px; text-transform: uppercase; letter-spacing: .8px; }
+    .form-group { margin-bottom: 14px; }
+    .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+    @media(max-width:480px){ .form-row{ grid-template-columns:1fr; } }
+
+    /* ── BUTTONS ── */
+    .btn {
+      font-family: 'Syne', sans-serif;
+      font-weight: 700;
+      font-size: .85rem;
+      padding: 10px 22px;
+      border-radius: 8px;
+      border: none;
+      cursor: pointer;
+      transition: all .18s;
+      letter-spacing: .3px;
+    }
+    .btn-primary { background: var(--accent); color: #fff; }
+    .btn-primary:hover { background: #9487ff; transform: translateY(-1px); }
+    .btn-danger { background: transparent; border: 1px solid var(--danger); color: var(--danger); padding: 5px 12px; font-size: .78rem; }
+    .btn-danger:hover { background: var(--danger); color: #fff; }
+    .btn-success { background: transparent; border: 1px solid var(--accent3); color: var(--accent3); padding: 5px 12px; font-size: .78rem; }
+    .btn-success:hover { background: var(--accent3); color: #000; }
+    .btn-sm { padding: 6px 14px; font-size: .8rem; }
+    .btn-full { width: 100%; margin-top: 4px; }
+
+    /* ── TASK LIST ── */
+    .task-list { list-style: none; display: flex; flex-direction: column; gap: 10px; }
+    .task-item {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 14px 16px;
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      transition: all .2s;
+      animation: slideIn .3s ease;
+    }
+    @keyframes slideIn {
+      from { opacity: 0; transform: translateY(12px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    .task-item:hover { border-color: var(--accent); }
+    .task-item.done { opacity: .5; }
+    .task-item.done .task-title { text-decoration: line-through; color: var(--muted); }
+    .task-check {
+      width: 18px; height: 18px;
+      border-radius: 50%;
+      border: 2px solid var(--muted);
+      cursor: pointer;
+      flex-shrink: 0;
+      margin-top: 2px;
+      display: grid;
+      place-items: center;
+      transition: all .15s;
+    }
+    .task-check.checked { background: var(--accent3); border-color: var(--accent3); }
+    .task-check.checked::after { content: '✓'; font-size: .65rem; color: #000; font-weight: 800; }
+    .task-body { flex: 1; min-width: 0; }
+    .task-title { font-family: 'Syne', sans-serif; font-size: .9rem; font-weight: 600; }
+    .task-meta { font-size: .72rem; color: var(--muted); margin-top: 4px; display: flex; gap: 10px; flex-wrap: wrap; }
+    .task-actions { display: flex; gap: 8px; flex-shrink: 0; }
+    .priority-dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      flex-shrink: 0;
+      margin-top: 6px;
+    }
+    .p-high   { background: var(--danger); }
+    .p-medium { background: var(--warn); }
+    .p-low    { background: var(--accent3); }
+    .badge {
+      font-size: .68rem;
+      padding: 2px 8px;
+      border-radius: 99px;
+      font-weight: 500;
+    }
+    .badge-high   { background: rgba(255,77,109,.15); color: var(--danger); }
+    .badge-medium { background: rgba(255,200,69,.15); color: var(--warn); }
+    .badge-low    { background: rgba(67,232,176,.15); color: var(--accent3); }
+
+    /* ── STUDY SESSION ── */
+    .timer-display {
+      font-family: 'Syne', sans-serif;
+      font-weight: 800;
+      font-size: 3.5rem;
+      text-align: center;
+      color: var(--accent);
+      letter-spacing: 2px;
+      margin: 20px 0;
+      text-shadow: 0 0 40px rgba(124,111,255,.4);
+    }
+    .timer-controls { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+    .progress-bar-wrap {
+      background: var(--border);
+      border-radius: 99px;
+      height: 6px;
+      margin: 12px 0;
+      overflow: hidden;
+    }
+    .progress-bar-fill {
+      height: 100%;
+      border-radius: 99px;
+      background: linear-gradient(90deg, var(--accent), var(--accent2));
+      transition: width .5s linear;
+    }
+    .session-log { list-style: none; display: flex; flex-direction: column; gap: 8px; max-height: 220px; overflow-y: auto; }
+    .session-log::-webkit-scrollbar { width: 4px; }
+    .session-log::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+    .session-entry {
+      background: var(--surface2);
+      border-radius: 8px;
+      padding: 10px 14px;
+      font-size: .78rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      animation: slideIn .25s ease;
+    }
+    .session-duration { color: var(--accent3); font-weight: 600; }
+
+    /* ── QUOTE CARD ── */
+    .quote-card {
+      background: linear-gradient(135deg, var(--surface), var(--surface2));
+      border: 1px solid var(--border);
+      border-left: 4px solid var(--accent);
+      border-radius: var(--radius);
+      padding: 24px 28px;
+      margin-bottom: 28px;
+      position: relative;
+      overflow: hidden;
+    }
+    .quote-card::before {
+      content: '"';
+      position: absolute;
+      top: -10px; left: 12px;
+      font-size: 6rem;
+      color: rgba(124,111,255,.12);
+      font-family: 'Syne', sans-serif;
+      line-height: 1;
+    }
+    .quote-text { font-size: 1rem; line-height: 1.7; color: var(--text); position: relative; z-index: 1; }
+    .quote-author { font-size: .78rem; color: var(--accent); margin-top: 10px; }
+    .quote-loading { color: var(--muted); font-style: italic; font-size: .85rem; }
+    .refresh-btn {
+      position: absolute;
+      top: 16px; right: 16px;
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--muted);
+      border-radius: 8px;
+      padding: 5px 10px;
+      cursor: pointer;
+      font-size: .8rem;
+      transition: all .2s;
+    }
+    .refresh-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+    /* ── SCHEDULE ── */
+    .schedule-grid { display: flex; flex-direction: column; gap: 10px; }
+    .schedule-item {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 14px 16px;
+      display: flex;
+      gap: 16px;
+      align-items: center;
+      animation: slideIn .3s ease;
+    }
+    .schedule-time {
+      font-family: 'Syne', sans-serif;
+      font-weight: 700;
+      font-size: .85rem;
+      color: var(--accent2);
+      min-width: 60px;
+      text-align: center;
+    }
+    .schedule-body { flex: 1; }
+    .schedule-subject { font-family: 'Syne', sans-serif; font-weight: 600; font-size: .9rem; }
+    .schedule-detail { font-size: .72rem; color: var(--muted); margin-top: 3px; }
+    .color-dot {
+      width: 10px; height: 10px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    /* ── FILTER BAR ── */
+    .filter-row { display: flex; gap: 10px; margin-bottom: 18px; flex-wrap: wrap; align-items: center; }
+    .filter-chip {
+      font-size: .75rem;
+      padding: 5px 14px;
+      border-radius: 99px;
+      border: 1px solid var(--border);
+      background: transparent;
+      color: var(--muted);
+      cursor: pointer;
+      transition: all .15s;
+      font-family: 'DM Mono', monospace;
+    }
+    .filter-chip:hover { border-color: var(--accent); color: var(--text); }
+    .filter-chip.active { background: rgba(124,111,255,.2); border-color: var(--accent); color: var(--accent); }
+
+    /* ── EMPTY STATE ── */
+    .empty-state {
+      text-align: center;
+      padding: 48px 20px;
+      color: var(--muted);
+    }
+    .empty-state .empty-icon { font-size: 2.5rem; margin-bottom: 12px; }
+    .empty-state p { font-size: .85rem; line-height: 1.6; }
+
+    /* ── NOTIFICATIONS / TOAST ── */
+    #toast-container {
+      position: fixed;
+      bottom: 28px; right: 28px;
+      z-index: 999;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .toast {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-left: 4px solid var(--accent3);
+      border-radius: 10px;
+      padding: 12px 18px;
+      font-size: .82rem;
+      animation: toastIn .25s ease;
+      max-width: 280px;
+    }
+    .toast.error { border-left-color: var(--danger); }
+    @keyframes toastIn {
+      from { opacity: 0; transform: translateX(20px); }
+      to   { opacity: 1; transform: translateX(0); }
+    }
+
+    /* ── SECTION HEADING ── */
+    .section-heading {
+      font-family: 'Syne', sans-serif;
+      font-weight: 800;
+      font-size: 1.5rem;
+      margin-bottom: 8px;
+    }
+    .section-sub { color: var(--muted); font-size: .8rem; margin-bottom: 24px; }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="logo">Study<span>Flow</span></div>
+  <div id="live-clock">--:--:--</div>
+  <div class="header-meta">Student Task & Study Planner</div>
+</header>
+
+<div class="container">
+
+  <!-- STATS ROW -->
+  <div class="stats-row">
+    <div class="stat-card s1">
+      <div class="stat-label">Total Tasks</div>
+      <div class="stat-value" id="stat-total">0</div>
+    </div>
+    <div class="stat-card s2">
+      <div class="stat-label">Completed</div>
+      <div class="stat-value" id="stat-done">0</div>
+    </div>
+    <div class="stat-card s3">
+      <div class="stat-label">Study Sessions</div>
+      <div class="stat-value" id="stat-sessions">0</div>
+    </div>
+    <div class="stat-card s4">
+      <div class="stat-label">Pending</div>
+      <div class="stat-value" id="stat-pending">0</div>
+    </div>
+  </div>
+
+  <!-- MOTIVATIONAL QUOTE (Fetch API) -->
+  <div class="quote-card" id="quote-card">
+    <button class="refresh-btn" onclick="fetchQuote()">↻ New</button>
+    <div class="quote-text quote-loading" id="quote-text">Loading inspiration...</div>
+    <div class="quote-author" id="quote-author"></div>
+  </div>
+
+  <!-- TABS -->
+  <div class="tabs">
+    <button class="tab-btn active" onclick="switchTab('tasks', this)">📋 Tasks</button>
+    <button class="tab-btn" onclick="switchTab('add', this)">➕ Add Task</button>
+    <button class="tab-btn" onclick="switchTab('timer', this)">⏱️ Study Timer</button>
+    <button class="tab-btn" onclick="switchTab('schedule', this)">📅 Schedule</button>
+  </div>
+
+  <!-- ── PANEL: TASKS ── -->
+  <div id="panel-tasks" class="panel active">
+    <div class="section-heading">My Tasks</div>
+    <div class="section-sub">All your assignments & study tasks in one place.</div>
+
+    <div class="filter-row">
+      <span style="font-size:.75rem;color:var(--muted);">Filter:</span>
+      <button class="filter-chip active" onclick="filterTasks('all', this)">All</button>
+      <button class="filter-chip" onclick="filterTasks('pending', this)">Pending</button>
+      <button class="filter-chip" onclick="filterTasks('done', this)">Completed</button>
+      <button class="filter-chip" onclick="filterTasks('high', this)">🔴 High</button>
+      <button class="filter-chip" onclick="filterTasks('medium', this)">🟡 Medium</button>
+      <button class="filter-chip" onclick="filterTasks('low', this)">🟢 Low</button>
+    </div>
+
+    <ul class="task-list" id="task-list"></ul>
+  </div>
+
+  <!-- ── PANEL: ADD TASK ── -->
+  <div id="panel-add" class="panel">
+    <div class="section-heading">Add New Task</div>
+    <div class="section-sub">Create a task or assignment with deadline and priority.</div>
+
+    <div class="card" style="max-width:560px;">
+      <div class="form-group">
+        <label>Task Title *</label>
+        <input type="text" id="task-title" placeholder="e.g. Submit Math Assignment" />
+      </div>
+      <div class="form-group">
+        <label>Subject / Category</label>
+        <input type="text" id="task-subject" placeholder="e.g. Mathematics, Physics..." />
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Due Date</label>
+          <input type="date" id="task-date" />
+        </div>
+        <div class="form-group">
+          <label>Priority</label>
+          <select id="task-priority">
+            <option value="high">🔴 High</option>
+            <option value="medium" selected>🟡 Medium</option>
+            <option value="low">🟢 Low</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Notes (optional)</label>
+        <textarea id="task-notes" rows="3" placeholder="Any extra details..."></textarea>
+      </div>
+      <button class="btn btn-primary btn-full" onclick="addTask()">+ Add Task</button>
+    </div>
+  </div>
+
+  <!-- ── PANEL: STUDY TIMER ── -->
+  <div id="panel-timer" class="panel">
+    <div class="section-heading">Pomodoro Study Timer</div>
+    <div class="section-sub">Focus in timed bursts. Sessions are saved to LocalStorage.</div>
+
+    <div class="grid-3" style="grid-template-columns:1fr 1fr;">
+
+      <div class="card">
+        <div class="card-title"><span class="icon">⏱️</span> Timer</div>
+
+        <div class="form-group">
+          <label>Session Label</label>
+          <input type="text" id="session-label" placeholder="e.g. Reading Chapter 3" />
+        </div>
+        <div class="form-group">
+          <label>Duration (minutes)</label>
+          <input type="number" id="session-duration" value="25" min="1" max="180" />
+        </div>
+
+        <div class="timer-display" id="timer-display">25:00</div>
+        <div class="progress-bar-wrap">
+          <div class="progress-bar-fill" id="timer-bar" style="width:0%"></div>
+        </div>
+        <div class="timer-controls">
+          <button class="btn btn-primary" onclick="startTimer()">▶ Start</button>
+          <button class="btn btn-sm" style="border:1px solid var(--border);background:transparent;color:var(--muted);" onclick="pauseTimer()">⏸ Pause</button>
+          <button class="btn btn-sm" style="border:1px solid var(--danger);background:transparent;color:var(--danger);" onclick="resetTimer()">⏹ Reset</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title"><span class="icon">📓</span> Session Log</div>
+        <ul class="session-log" id="session-log">
+          <li style="color:var(--muted);font-size:.8rem;padding:8px;">No sessions yet. Start your first one!</li>
+        </ul>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ── PANEL: SCHEDULE ── -->
+  <div id="panel-schedule" class="panel">
+    <div class="section-heading">Weekly Schedule</div>
+    <div class="section-sub">Plan your classes and study blocks for the week.</div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;" class="schedule-layout">
+
+      <div class="card">
+        <div class="card-title"><span class="icon">➕</span> Add Block</div>
+        <div class="form-group">
+          <label>Subject</label>
+          <input type="text" id="sch-subject" placeholder="e.g. Physics Lecture" />
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Day</label>
+            <select id="sch-day">
+              <option>Monday</option><option>Tuesday</option><option>Wednesday</option>
+              <option>Thursday</option><option>Friday</option><option>Saturday</option><option>Sunday</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Time</label>
+            <input type="time" id="sch-time" value="09:00" />
+          </div>
+        </div>
+        <div class="form-group">
+          <label>Location / Notes</label>
+          <input type="text" id="sch-note" placeholder="e.g. Room 101 / Self-study" />
+        </div>
+        <button class="btn btn-primary btn-full" onclick="addSchedule()">Add Block</button>
+      </div>
+
+      <div class="card" style="overflow:hidden;">
+        <div class="card-title"><span class="icon">📅</span> This Week</div>
+        <div class="schedule-grid" id="schedule-list"></div>
+      </div>
+
+    </div>
+  </div>
+
+</div><!-- /container -->
+
+<!-- TOAST CONTAINER -->
+<div id="toast-container"></div>
+
+<script>
+/* ===================================================
+   StudyFlow — Student Task & Study Planner
+   Features: DOM Manipulation, Events, LocalStorage, Fetch API
+   =================================================== */
+
+// ── LIVE CLOCK ──────────────────────────────────────
+function updateClock() {
+  const now = new Date();
+  document.getElementById('live-clock').textContent =
+    now.toLocaleTimeString('en-US', { hour12: false });
+}
+setInterval(updateClock, 1000);
+updateClock();
+
+// ── TOAST ────────────────────────────────────────────
+function showToast(msg, type = 'success') {
+  const t = document.createElement('div');
+  t.className = `toast${type === 'error' ? ' error' : ''}`;
+  t.textContent = msg;
+  document.getElementById('toast-container').appendChild(t);
+  setTimeout(() => t.remove(), 3000);
+}
+
+// ── TABS ─────────────────────────────────────────────
+function switchTab(name, btn) {
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('panel-' + name).classList.add('active');
+  btn.classList.add('active');
+}
+
+// ── LOCAL STORAGE HELPERS ────────────────────────────
+function getLS(key, def) {
+  try { return JSON.parse(localStorage.getItem(key)) || def; }
+  catch { return def; }
+}
+function setLS(key, val) {
+  localStorage.setItem(key, JSON.stringify(val));
+}
+
+// ═══════════════════════════════════════════════════════
+//  TASKS
+// ═══════════════════════════════════════════════════════
+let tasks = getLS('sf_tasks', []);
+let currentFilter = 'all';
+
+function addTask() {
+  const title = document.getElementById('task-title').value.trim();
+  if (!title) { showToast('Please enter a task title!', 'error'); return; }
+  const task = {
+    id: Date.now(),
+    title,
+    subject: document.getElementById('task-subject').value.trim(),
+    date: document.getElementById('task-date').value,
+    priority: document.getElementById('task-priority').value,
+    notes: document.getElementById('task-notes').value.trim(),
+    done: false,
+    createdAt: new Date().toISOString()
+  };
+  tasks.unshift(task);
+  setLS('sf_tasks', tasks);
+  renderTasks();
+  updateStats();
+  // reset form
+  ['task-title','task-subject','task-date','task-notes'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('task-priority').value = 'medium';
+  showToast('✓ Task added!');
+  // switch to tasks tab
+  document.querySelector('.tab-btn').click();
+}
+
+function toggleTask(id) {
+  tasks = tasks.map(t => t.id === id ? { ...t, done: !t.done } : t);
+  setLS('sf_tasks', tasks);
+  renderTasks();
+  updateStats();
+}
+
+function deleteTask(id) {
+  tasks = tasks.filter(t => t.id !== id);
+  setLS('sf_tasks', tasks);
+  renderTasks();
+  updateStats();
+  showToast('Task deleted.');
+}
+
+function filterTasks(f, btn) {
+  currentFilter = f;
+  document.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active'));
+  btn.classList.add('active');
+  renderTasks();
+}
+
+function renderTasks() {
+  const list = document.getElementById('task-list');
+  let filtered = tasks;
+  if (currentFilter === 'pending') filtered = tasks.filter(t => !t.done);
+  else if (currentFilter === 'done') filtered = tasks.filter(t => t.done);
+  else if (['high','medium','low'].includes(currentFilter))
+    filtered = tasks.filter(t => t.priority === currentFilter);
+
+  if (!filtered.length) {
+    list.innerHTML = `<div class="empty-state"><div class="empty-icon">📭</div><p>No tasks here yet.<br>Add one from the "Add Task" tab!</p></div>`;
+    return;
+  }
+
+  list.innerHTML = filtered.map(t => {
+    const badgeClass = `badge badge-${t.priority}`;
+    const label = t.priority.charAt(0).toUpperCase() + t.priority.slice(1);
+    const due = t.date ? `📅 ${t.date}` : '';
+    const subj = t.subject ? `📚 ${t.subject}` : '';
+    return `
+    <li class="task-item${t.done ? ' done' : ''}" data-id="${t.id}">
+      <div class="priority-dot p-${t.priority}"></div>
+      <div class="task-check${t.done ? ' checked' : ''}" onclick="toggleTask(${t.id})"></div>
+      <div class="task-body">
+        <div class="task-title">${escHtml(t.title)}</div>
+        <div class="task-meta">
+          <span class="${badgeClass}">${label}</span>
+          ${subj ? `<span>${subj}</span>` : ''}
+          ${due ? `<span>${due}</span>` : ''}
+          ${t.notes ? `<span>📝 ${escHtml(t.notes)}</span>` : ''}
+        </div>
+      </div>
+      <div class="task-actions">
+        <button class="btn btn-success" onclick="toggleTask(${t.id})">${t.done ? '↩' : '✓'}</button>
+        <button class="btn btn-danger" onclick="deleteTask(${t.id})">✕</button>
+      </div>
+    </li>`;
+  }).join('');
+}
+
+function updateStats() {
+  const done = tasks.filter(t => t.done).length;
+  document.getElementById('stat-total').textContent   = tasks.length;
+  document.getElementById('stat-done').textContent    = done;
+  document.getElementById('stat-pending').textContent = tasks.length - done;
+}
+
+// ═══════════════════════════════════════════════════════
+//  STUDY TIMER (Pomodoro)
+// ═══════════════════════════════════════════════════════
+let timerInterval = null;
+let timerRunning  = false;
+let timerTotal    = 0;
+let timerLeft     = 0;
+
+function startTimer() {
+  if (timerRunning) return;
+  const mins = parseInt(document.getElementById('session-duration').value) || 25;
+  if (!timerLeft) {
+    timerTotal = mins * 60;
+    timerLeft  = timerTotal;
+  }
+  timerRunning = true;
+  timerInterval = setInterval(() => {
+    timerLeft--;
+    renderTimer();
+    if (timerLeft <= 0) {
+      clearInterval(timerInterval);
+      timerRunning = false;
+      saveSession(mins);
+      showToast('🎉 Session complete! Great work!');
+      timerLeft = 0;
+      renderTimer();
+    }
+  }, 1000);
+}
+
+function pauseTimer() {
+  clearInterval(timerInterval);
+  timerRunning = false;
+}
+
+function resetTimer() {
+  clearInterval(timerInterval);
+  timerRunning = false;
+  timerLeft = 0;
+  const mins = parseInt(document.getElementById('session-duration').value) || 25;
+  timerTotal = mins * 60;
+  document.getElementById('timer-display').textContent = `${String(mins).padStart(2,'0')}:00`;
+  document.getElementById('timer-bar').style.width = '0%';
+}
+
+function renderTimer() {
+  const m = Math.floor(timerLeft / 60);
+  const s = timerLeft % 60;
+  document.getElementById('timer-display').textContent =
+    `${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+  const pct = timerTotal > 0 ? ((timerTotal - timerLeft) / timerTotal) * 100 : 0;
+  document.getElementById('timer-bar').style.width = pct + '%';
+}
+
+function saveSession(mins) {
+  const label = document.getElementById('session-label').value.trim() || 'Study Session';
+  const sessions = getLS('sf_sessions', []);
+  const entry = {
+    id: Date.now(),
+    label,
+    duration: mins,
+    date: new Date().toLocaleDateString(),
+    time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+  };
+  sessions.unshift(entry);
+  setLS('sf_sessions', sessions);
+  renderSessions();
+  document.getElementById('stat-sessions').textContent = sessions.length;
+}
+
+function renderSessions() {
+  const sessions = getLS('sf_sessions', []);
+  document.getElementById('stat-sessions').textContent = sessions.length;
+  const log = document.getElementById('session-log');
+  if (!sessions.length) {
+    log.innerHTML = `<li style="color:var(--muted);font-size:.8rem;padding:8px;">No sessions yet. Start your first one!</li>`;
+    return;
+  }
+  log.innerHTML = sessions.slice(0,20).map(s => `
+    <li class="session-entry">
+      <span>${s.label} · ${s.date} ${s.time}</span>
+      <span class="session-duration">${s.duration}m</span>
+    </li>`).join('');
+}
+
+// Sync duration input → reset display
+document.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('session-duration').addEventListener('input', resetTimer);
+});
+
+// ═══════════════════════════════════════════════════════
+//  SCHEDULE
+// ═══════════════════════════════════════════════════════
+let schedules = getLS('sf_schedules', []);
+const COLORS = ['#7c6fff','#ff6b9d','#43e8b0','#ffc845','#60a5fa','#f97316','#a78bfa'];
+
+function addSchedule() {
+  const subject = document.getElementById('sch-subject').value.trim();
+  if (!subject) { showToast('Enter a subject name!', 'error'); return; }
+  const item = {
+    id: Date.now(),
+    subject,
+    day: document.getElementById('sch-day').value,
+    time: document.getElementById('sch-time').value,
+    note: document.getElementById('sch-note').value.trim(),
+    color: COLORS[schedules.length % COLORS.length]
+  };
+  schedules.unshift(item);
+  setLS('sf_schedules', schedules);
+  renderSchedule();
+  ['sch-subject','sch-note'].forEach(id => document.getElementById(id).value = '');
+  showToast('📅 Schedule block added!');
+}
+
+function deleteSchedule(id) {
+  schedules = schedules.filter(s => s.id !== id);
+  setLS('sf_schedules', schedules);
+  renderSchedule();
+}
+
+function renderSchedule() {
+  const container = document.getElementById('schedule-list');
+  if (!schedules.length) {
+    container.innerHTML = `<div class="empty-state"><div class="empty-icon">📅</div><p>No schedule blocks yet.</p></div>`;
+    return;
+  }
+  const dayOrder = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
+  const sorted = [...schedules].sort((a,b) => {
+    const di = dayOrder.indexOf(a.day) - dayOrder.indexOf(b.day);
+    return di !== 0 ? di : a.time.localeCompare(b.time);
+  });
+  container.innerHTML = sorted.map(s => `
+    <div class="schedule-item">
+      <div class="color-dot" style="background:${s.color}"></div>
+      <div class="schedule-time">${s.time}</div>
+      <div class="schedule-body">
+        <div class="schedule-subject">${escHtml(s.subject)}</div>
+        <div class="schedule-detail">${s.day}${s.note ? ' · ' + escHtml(s.note) : ''}</div>
+      </div>
+      <button class="btn btn-danger" onclick="deleteSchedule(${s.id})">✕</button>
+    </div>`).join('');
+}
+
+// ═══════════════════════════════════════════════════════
+//  FETCH API — Motivational Quote
+// ═══════════════════════════════════════════════════════
+async function fetchQuote() {
+  const textEl   = document.getElementById('quote-text');
+  const authorEl = document.getElementById('quote-author');
+  textEl.className = 'quote-text quote-loading';
+  textEl.textContent = 'Fetching inspiration...';
+  authorEl.textContent = '';
+
+  try {
+    // Using the free quoteslate API
+    const res  = await fetch('https://quotes-api-self.vercel.app/quote');
+    if (!res.ok) throw new Error('Network response was not ok');
+    const data = await res.json();
+    textEl.className = 'quote-text';
+    textEl.textContent  = data.quote  || data.content || 'Believe in yourself!';
+    authorEl.textContent = '— ' + (data.author || 'Unknown');
+  } catch (err) {
+    // Fallback quotes if API fails
+    const fallback = [
+      { q: "The secret of getting ahead is getting started.", a: "Mark Twain" },
+      { q: "Education is the most powerful weapon you can use to change the world.", a: "Nelson Mandela" },
+      { q: "Study hard what interests you the most in the most undisciplined, irreverent and original manner possible.", a: "Richard Feynman" },
+      { q: "Success is the sum of small efforts, repeated day in and day out.", a: "Robert Collier" },
+      { q: "The expert in anything was once a beginner.", a: "Helen Hayes" },
+    ];
+    const pick = fallback[Math.floor(Math.random() * fallback.length)];
+    textEl.className = 'quote-text';
+    textEl.textContent  = pick.q;
+    authorEl.textContent = '— ' + pick.a;
+  }
+}
+
+// ── UTILITIES ────────────────────────────────────────
+function escHtml(str) {
+  return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ── INIT ─────────────────────────────────────────────
+renderTasks();
+updateStats();
+renderSessions();
+renderSchedule();
+fetchQuote();
+resetTimer();
+</script>
+</body>
+</html>
